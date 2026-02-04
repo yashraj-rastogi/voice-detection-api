@@ -143,6 +143,19 @@ def read_root():
         "authentication": auth_status
     }
 
+@app.get("/health")
+def health_check():
+    """
+    Health check endpoint for monitoring.
+    Returns API status, version, and model info.
+    """
+    return {
+        "status": "healthy",
+        "version": "2.0.0",
+        "model": settings.MODEL_NAME,
+        "authentication": "enabled" if settings.API_KEY else "disabled"
+    }
+
 @app.post("/detect", response_model=DetectionResponse)
 async def detect_voice(
     request: AudioRequest,

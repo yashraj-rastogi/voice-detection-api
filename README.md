@@ -1,62 +1,47 @@
 ---
 title: AI Voice Detection API
-emoji: 🎤
+emoji: 🎙️
 colorFrom: blue
 colorTo: purple
 sdk: docker
 app_port: 8000
+pinned: false
+license: mit
 ---
 
-# AI Voice Detection API
+# 🎙️ VoiceGuard - AI Voice Detection API (v2.0)
 
-This Space provides an API to detect AI-generated voice samples across multiple languages (Tamil, English, Hindi, Malayalam, Telugu).
+**Detect AI-Generated Voices with High Accuracy.**
 
-## API Endpoint
+## 🌟 Features
+- **Web UI:** Record or upload audio directly in the browser to test.
+- **API Endpoint:** `/detect` endpoint for developers (Hackathon Compliant).
+- **Advanced Model:** Uses `mo-thecreator/Deepfake-audio-detection`.
+- **Supports:** WAV, MP3, FLAC.
 
-**POST** `/detect`
+## 🚀 How to Use
 
-### Request
+### Option 1: Web Interface (Easy)
+Just open the App tab above! You can record your voice or upload a file.
+
+### Option 2: API Usage
+Send a POST request to `/detect`:
+
 ```json
+POST /detect
+Content-Type: application/json
+X-API-Key: YOUR_API_KEY (if enabled)
+
 {
-  "audio": "BASE64_ENCODED_AUDIO"
+  "language": "English",
+  "audioFormat": "mp3",
+  "audioBase64": "UklGR..."
 }
 ```
 
-### Headers
+## 🛠️ Local Development
+
+```bash
+pip install -r requirements.txt
+python -m uvicorn app.main:app --reload
 ```
-X-API-Key: uNaRqJimOAQUK4uL-YRN_DjvHwpGiV8igbhJUUVm3NkY
-```
-
-### Response
-```json
-{
-  "result": "AI_GENERATED",
-  "confidence": 0.8542,
-  "message": "Audio classified successfully"
-}
-```
-
-## Usage
-
-```python
-import requests
-import base64
-
-# Read audio file
-with open('audio.mp3', 'rb') as f:
-    audio_base64 = base64.b64encode(f.read()).decode('utf-8')
-
-# Make request
-headers = {"X-API-Key": "uNaRqJimOAQUK4uL-YRN_DjvHwpGiV8igbhJUUVm3NkY"}
-response = requests.post(
-    "https://YOUR-USERNAME-voice-detection.hf.space/detect",
-    json={"audio": audio_base64},
-    headers=headers
-)
-
-print(response.json())
-```
-
-## Model
-
-Uses `mo-thecreator/Deepfake-audio-detection` (Wav2Vec2-based) for voice classification.

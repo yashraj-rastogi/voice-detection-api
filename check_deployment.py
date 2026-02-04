@@ -11,10 +11,17 @@ print("🔍 Checking if Hugging Face Space is ready...\n")
 try:
     response = requests.get(SPACE_URL, timeout=10)
     
+    print(f"Status Code: {response.status_code}")
+    
     if response.status_code == 200:
-        print("✅ SUCCESS! Your Space is RUNNING!")
-        print(f"\n📦 Response from API:")
-        print(response.json())
+        content_type = response.headers.get("Content-Type", "").lower()
+        if "text/html" in content_type:
+            print("✅ SUCCESS! Your Space is RUNNING! (Web UI is live)")
+            print(f"   The root URL now serves the new Voice Detection Interface.")
+        else:
+            print("✅ Deployment Live (JSON API)")
+            print(response.json())
+            
         print("\n🎉 You can now test your API!")
         print(f"🔗 Space URL: https://huggingface.co/spaces/Pandaisop/voice-detection-api")
     else:
@@ -28,7 +35,6 @@ except requests.exceptions.ConnectionError:
     
 except requests.exceptions.Timeout:
     print("⏱️  Request timed out!")
-    print("The Space might be starting up. Try again in a moment.")
     
 except Exception as e:
     print(f"❌ Error: {str(e)}")

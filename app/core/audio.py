@@ -44,8 +44,8 @@ def preprocess_audio(audio_file: io.BytesIO):
             if len(y.shape) > 1:
                 y = librosa.to_mono(y)
                 
-            # Normalize (optional, but good practice)
-            # y = librosa.util.normalize(y)
+            # Normalize audio for consistent predictions
+            y = librosa.util.normalize(y)
             
             return y
         finally:
