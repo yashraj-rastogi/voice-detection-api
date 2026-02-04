@@ -1,9 +1,12 @@
 
+
 from fastapi import FastAPI, HTTPException, Header, Depends
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, validator
-from typing import Optional
+from typing import Optional, Literal
 from app.core.audio import decode_base64_audio, preprocess_audio
 from app.core.model import voice_detector
+from app.core.explanation import generate_explanation
 from app.config import settings
 import uvicorn
 import logging
@@ -17,26 +20,71 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Request Model
-class AudioRequest(BaseModel):
-    audio: Optional[str] = Field(None, description="Base64 encoded audio file (MP3, WAV, OGG, FLAC)")
-    audioBase64: Optional[str] = Field(None, description="Alternative field name for base64 audio")
-    language: Optional[str] = Field(None, description="Language of the audio (optional)")
-    audioFormat: Optional[str] = Field(None, description="Format of the audio file (optional)")
-    
-    @validator('audio', always=True)
-    def get_audio_data(cls, v, values):
-        # If 'audio' is not provided, use 'audioBase64'
-        if v is None and 'audioBase64' in values and values['audioBase64']:
-            return values['audioBase64']
-        if v is None:
-            raise ValueError("Either 'audio' or 'audioBase64' field is required")
-        return v
+# Custom Error Handlers (Hackathon Specification)
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc):
+    """Return error responses in hackathon-compliant format"""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "status": "error",
+            "message": exc.detail
+        }
+    )
 
-# Response Model
+@app.exception_handler(Exception)
+async def general_exception_handler(request, exc):
+    """Handle unexpected errors"""
+    logger.error(f"Unhandled exception: {str(exc)}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "status": "error",
+            "message": "Internal server error"
+        }
+    )
+
+# Request Model (Hackathon Specification)
+class AudioRequest(BaseModel):
+    language: Literal["Tamil", "English", "Hindi", "Malayalam", "Telugu"] = Field(
+        ..., 
+        description="Language of the audio (Tamil/English/Hindi/Malayalam/Telugu)"
+    )
+    audioFormat: Literal["mp3"] = Field(
+        ..., 
+        description="Audio format (must be mp3)"
+    )
+    audioBase64: str = Field(
+        ..., 
+        description="Base64-encoded MP3 audio"
+    )
+
+# Response Model (Hackathon Specification)
 class DetectionResponse(BaseModel):
-    result: str
-    confidence: float
+    status: Literal["success", "error"] = Field(
+        default="success",
+        description="Response status"
+    )
+    language: str = Field(..., description="Language of the audio")
+    classification: Literal["AI_GENERATED", "HUMAN"] = Field(
+        ..., 
+        description="Voice classification result"
+    )
+    confidenceScore: float = Field(
+        ..., 
+        ge=0.0, 
+        le=1.0,
+        description="Confidence score between 0.0 and 1.0"
+    )
+    explanation: str = Field(
+        ..., 
+        description="Short reason for the decision"
+    )
+
+# Error Response Model
+class ErrorResponse(BaseModel):
+    status: Literal["error"] = "error"
+    message: str
 
 def verify_api_key(x_api_key: str = Header(None, alias="X-API-Key")):
     """
@@ -77,11 +125,12 @@ async def detect_voice(
     authenticated: bool = Depends(verify_api_key)
 ):
     """
-    Analyzes the provided Base64 audio and determines if it is AI-generated or Human.
+    Analyzes Base64 MP3 audio and determines if it is AI-generated or Human.
+    Supports: Tamil, English, Hindi, Malayalam, Telugu
     """
     try:
         # 1. Decode Base64
-        audio_file = decode_base64_audio(request.audio)
+        audio_file = decode_base64_audio(request.audioBase64)
         
         # 2. Preprocess Audio
         audio_tensor = preprocess_audio(audio_file)
@@ -89,13 +138,25 @@ async def detect_voice(
         # 3. Predict
         label, confidence = voice_detector.predict(audio_tensor)
         
-        return DetectionResponse(result=label, confidence=confidence)
+        # 4. Generate explanation
+        explanation = generate_explanation(label, confidence)
+        
+        return DetectionResponse(
+            status="success",
+            language=request.language,
+            classification=label,
+            confidenceScore=round(confidence, 2),
+            explanation=explanation
+        )
         
     except HTTPException as he:
         raise he
     except Exception as e:
-        logger.error(f"Internal Server Error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal Server Error processing the request.")
+        logger.error(f"Error processing request: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail="Internal server error processing the audio"
+        )
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
