@@ -9,3 +9,6 @@ librosa
 scipy
 soundfile
 numpy
+datasets
+evaluate
+accelerate
