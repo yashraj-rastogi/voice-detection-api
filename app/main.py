@@ -103,11 +103,18 @@ class ErrorResponse(BaseModel):
     status: Literal["error"] = "error"
     message: str
 
-def verify_api_key(x_api_key: str = Header(None, alias="X-API-Key")):
+def verify_api_key(
+    x_api_key_lower: str = Header(None, alias="x-api-key"),
+    x_api_key_upper: str = Header(None, alias="X-API-Key")
+):
     """
     Verify the API key from the request header.
+    Accepts both 'x-api-key' (hackathon format) and 'X-API-Key' for compatibility.
     If API_KEY is not configured, this check is skipped (development mode).
     """
+    # Get the API key from either header (hackathon uses lowercase)
+    x_api_key = x_api_key_lower or x_api_key_upper
+    
     # If no API key is configured, allow all requests (development mode)
     if not settings.API_KEY:
         return True
@@ -116,7 +123,7 @@ def verify_api_key(x_api_key: str = Header(None, alias="X-API-Key")):
     if not x_api_key:
         raise HTTPException(
             status_code=401,
-            detail="API key is required. Please provide X-API-Key header."
+            detail="API key is required. Please provide x-api-key header."
         )
     
     if x_api_key != settings.API_KEY:
