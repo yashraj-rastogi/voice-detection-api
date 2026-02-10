@@ -1,0 +1,111 @@
+# ============================================================
+# World-Class AI Voice Detection — Master Configuration
+# ============================================================
+
+# --- Paths ---
+paths:
+  data_dir: "data"
+  output_dir: "output"
+  export_dir: "exported_models"
+  logs_dir: "logs"
+
+# --- Data ---
+data:
+  sample_rate: 16000
+  max_duration_sec: 10.0        # Clips longer than this are truncated
+  min_duration_sec: 0.5         # Clips shorter than this are rejected
+  split_ratios: [0.70, 0.15, 0.15]  # train / val / test
+  seed: 42
+  supported_formats: [".wav", ".mp3", ".flac", ".ogg"]
+  class_labels:
+    0: "HUMAN"
+    1: "AI_GENERATED"
+
+# --- Augmentation ---
+augmentation:
+  enabled: true
+  # Each augmentation has a probability of being applied per sample
+  gaussian_noise:
+    prob: 0.5
+    snr_range_db: [15, 40]
+  speed_perturb:
+    prob: 0.3
+    rate_range: [0.9, 1.1]
+  pitch_shift:
+    prob: 0.2
+    semitone_range: [-2, 2]
+  spec_augment:
+    prob: 0.5
+    freq_mask_param: 20
+    time_mask_param: 40
+    num_freq_masks: 2
+    num_time_masks: 2
+  codec_simulation:
+    prob: 0.3
+    codecs: ["mp3", "ogg"]       # Simulate lossy compression
+    bitrates: [32, 64, 128]
+  volume_perturb:
+    prob: 0.4
+    gain_range_db: [-6, 6]
+  rir_convolution:
+    prob: 0.0                    # Set > 0 and provide RIR files to enable
+    rir_dir: "data/rir"
+
+# --- Model ---
+model:
+  # Choose: "wav2vec2", "hubert", "wavlm", or "ensemble"
+  mode: "wav2vec2"
+  backbones:
+    wav2vec2:
+      name: "facebook/wav2vec2-large-xlsr-53"
+      freeze_layers: 12          # Freeze first N transformer layers
+    hubert:
+      name: "facebook/hubert-large-ls960"
+      freeze_layers: 12
+    wavlm:
+      name: "microsoft/wavlm-large"
+      freeze_layers: 12
+  classifier:
+    hidden_dim: 256
+    dropout: 0.3
+    pooling: "attentive_stats"   # "mean", "attentive_stats", or "multi_head"
+  ensemble:
+    strategy: "late_fusion"      # "late_fusion", "learned_fusion", "confidence_weighted"
+    weights: [0.4, 0.3, 0.3]    # For late_fusion: wav2vec2, hubert, wavlm
+
+# --- Training ---
+training:
+  batch_size: 8
+  gradient_accumulation_steps: 4  # Effective batch = 8 * 4 = 32
+  num_epochs: 20
+  learning_rate: 2.0e-5
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  lr_scheduler: "cosine_with_restarts"  # "cosine", "cosine_with_restarts", "linear"
+  fp16: true                     # Mixed precision
+  ema:
+    enabled: true
+    decay: 0.999
+  loss: "focal"                  # "cross_entropy" or "focal"
+  focal_gamma: 2.0
+  focal_alpha: 0.25
+  early_stopping_patience: 5
+  metric_for_best_model: "eer"   # "eer", "auc_roc", "accuracy", "f1"
+  save_total_limit: 3
+  seed: 42
+  deterministic: true
+
+# --- Evaluation ---
+evaluation:
+  metrics: ["eer", "auc_roc", "accuracy", "precision", "recall", "f1"]
+  per_language: true
+  calibration_curve: true
+  confusion_matrix: true
+  latency_benchmark: true
+
+# --- Export ---
+export:
+  formats: ["huggingface"]       # "huggingface", "onnx", "torchscript"
+  hf_repo_id: "Pandaisop/voice-detection-model"
+  onnx_opset: 14
+  quantize_onnx: false
