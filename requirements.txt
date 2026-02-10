@@ -1,14 +1,10 @@
 fastapi
-uvicorn
+uvicorn[standard]
 python-multipart
 python-dotenv
+--extra-index-url https://download.pytorch.org/whl/cpu
 torch
-torchaudio
 transformers
 librosa
-scipy
 soundfile
 numpy
-datasets
-evaluate
-accelerate
